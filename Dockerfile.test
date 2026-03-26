@@ -1,0 +1,25 @@
+FROM golang:1.26-bookworm
+
+# Install mise
+RUN curl -fsSL https://mise.jdx.dev/install.sh | sh
+ENV PATH="/root/.local/bin:${PATH}"
+
+# Install task (go-task)
+RUN sh -c "$(curl -fsSL https://taskfile.dev/install.sh)" -- -d -b /usr/local/bin
+
+# Install make (already in bookworm, but be explicit)
+RUN apt-get update && apt-get install -y --no-install-recommends make && rm -rf /var/lib/apt/lists/*
+
+WORKDIR /src
+COPY go.mod go.sum ./
+RUN go mod download
+
+COPY . .
+RUN go build -o /usr/local/bin/mi .
+
+ENV MI_INTEGRATION=1
+ENV MISE_YES=1
+ENV MISE_TRUSTED_CONFIG_PATHS=/src
+ENV NO_COLOR=1
+
+CMD ["go", "test", "-tags", "integration", "-v", "./test/integration/"]

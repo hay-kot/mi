@@ -24,11 +24,10 @@ description = "Run all go tests in watch mode"
 run = "gotestsum --watch -- -v ./..."
 
 [tasks."test:integration"]
-description = "Run integration tests against built binary"
+description = "Run integration tests in a container"
 run = """
-go build -o ./dist/mi . && \
-PATH="$(pwd)/dist:$PATH" MI_INTEGRATION=1 \
-gotestsum -- -tags integration -v ./test/integration/
+docker build -f Dockerfile.test -t mi-test . && \
+docker run --rm mi-test
 """
 
 [tasks.coverage]
