@@ -30,7 +30,7 @@ func (cmd *RunCmd) Action(ctx context.Context, c *cli.Command) error {
 
 	taskName := c.Args().First()
 	if taskName == "" {
-		return cli.ShowAppHelp(c)
+		return cmd.list(ctx)
 	}
 
 	dir, err := os.Getwd()
