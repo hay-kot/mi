@@ -1,7 +1,6 @@
 package runner
 
 import (
-	"bufio"
 	"context"
 	"os"
 	"os/exec"
@@ -11,9 +10,12 @@ import (
 )
 
 var (
-	// matches "target: ..." or "target: ... ## description"
-	makeTargetRe = regexp.MustCompile(`^([a-zA-Z0-9][a-zA-Z0-9._-]*):[^=]`)
-	makeDescRe   = regexp.MustCompile(`^[a-zA-Z0-9][a-zA-Z0-9._-]*:.*?##\s*(.+)$`)
+	// matches "target:", "target: deps", "target: deps ## description"
+	// target names may include '/' for path-style targets (e.g. cmd/foo/bar)
+	makeTargetRe     = regexp.MustCompile(`^([a-zA-Z0-9][a-zA-Z0-9._/-]*):(?:[^=]|$)`)
+	makeDescRe       = regexp.MustCompile(`^[a-zA-Z0-9][a-zA-Z0-9._/-]*:.*?##\s*(.+)$`)
+	makeCommentRe    = regexp.MustCompile(`^#\s*(.+)$`)
+	makeLineContinRe = regexp.MustCompile(`\\\n\s*`)
 )
 
 type MakeRunner struct{}
@@ -45,30 +47,51 @@ func (m *MakeRunner) ListTasks(ctx context.Context, dir string) ([]Task, error) 
 		return nil, nil
 	}
 
-	f, err := os.Open(path)
+	data, err := os.ReadFile(path)
 	if err != nil {
 		return nil, err
 	}
-	defer func() { _ = f.Close() }()
+
+	// Join line continuations so multi-line targets/deps are treated as one line.
+	content := makeLineContinRe.ReplaceAllString(string(data), " ")
 
 	var tasks []Task
-	scanner := bufio.NewScanner(f)
-	for scanner.Scan() {
-		line := scanner.Text()
-		match := makeTargetRe.FindStringSubmatch(line)
-		if match == nil {
+	var lastComment string
+
+	for line := range strings.SplitSeq(content, "\n") {
+		if strings.TrimSpace(line) == "" {
+			lastComment = ""
 			continue
 		}
+
+		// Capture preceding comment as candidate description.
+		if cm := makeCommentRe.FindStringSubmatch(line); cm != nil {
+			lastComment = strings.TrimSpace(cm[1])
+			continue
+		}
+
+		match := makeTargetRe.FindStringSubmatch(line)
+		if match == nil {
+			lastComment = ""
+			continue
+		}
+
 		name := match[1]
-		// skip hidden/internal targets
+		// skip hidden/internal targets (.PHONY, .DEFAULT, etc.)
 		if strings.HasPrefix(name, ".") {
+			lastComment = ""
 			continue
 		}
 
 		desc := ""
 		if dm := makeDescRe.FindStringSubmatch(line); dm != nil {
+			// Prefer inline ## description.
 			desc = strings.TrimSpace(dm[1])
+		} else {
+			// Fall back to immediately preceding # comment.
+			desc = lastComment
 		}
+		lastComment = ""
 
 		tasks = append(tasks, Task{
 			Name:   name,
@@ -76,7 +99,7 @@ func (m *MakeRunner) ListTasks(ctx context.Context, dir string) ([]Task, error) 
 			Runner: "make",
 		})
 	}
-	return tasks, scanner.Err()
+	return tasks, nil
 }
 
 func (m *MakeRunner) CmdString(task string, args []string) string {
