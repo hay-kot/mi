@@ -49,7 +49,7 @@ func (m *MakeRunner) ListTasks(ctx context.Context, dir string) ([]Task, error) 
 	if err != nil {
 		return nil, err
 	}
-	defer f.Close()
+	defer func() { _ = f.Close() }()
 
 	var tasks []Task
 	scanner := bufio.NewScanner(f)
