@@ -23,6 +23,14 @@ run = "gotestsum ./..."
 description = "Run all go tests in watch mode"
 run = "gotestsum --watch -- -v ./..."
 
+[tasks."test:integration"]
+description = "Run integration tests against built binary"
+run = """
+go build -o ./dist/mi . && \
+PATH="$(pwd)/dist:$PATH" MI_INTEGRATION=1 \
+gotestsum -- -tags integration -v ./test/integration/
+"""
+
 [tasks.coverage]
 description = "Run tests with race detection and coverage"
 run = "go test -race -coverprofile=coverage.out -covermode=atomic ./... -v -cover"
