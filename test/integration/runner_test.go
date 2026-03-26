@@ -305,6 +305,60 @@ run = "echo watching"
 	assert.Contains(t, out, "test:watch")
 }
 
+func TestMakefilePrecedingComment(t *testing.T) {
+	h := NewHarness(t).WithMakefile(`
+.PHONY: build
+
+# Build the binary
+build:
+	@echo "building"
+`)
+
+	out, err := h.Run("--ls")
+	require.NoError(t, err)
+	assert.Contains(t, out, "Build the binary")
+}
+
+func TestMakefilePathTarget(t *testing.T) {
+	h := NewHarness(t).WithMakefile(`
+# Compile for linux amd64
+cmd/foo/bar-linux-amd64:
+	@echo "building"
+`)
+
+	out, err := h.Run("--ls")
+	require.NoError(t, err)
+	assert.Contains(t, out, "cmd/foo/bar-linux-amd64")
+}
+
+func TestMakefileLineContinuation(t *testing.T) {
+	h := NewHarness(t).WithMakefile(`
+.PHONY: generate
+
+generate: go-generate gen-sqlc \
+	gen-swagger gen-go-client
+	@echo "done"
+`)
+
+	out, err := h.Run("--ls")
+	require.NoError(t, err)
+	assert.Contains(t, out, "generate")
+}
+
+func TestMakefilePrecedingCommentClearedByBlankLine(t *testing.T) {
+	h := NewHarness(t).WithMakefile(`
+# This comment is separated by a blank line
+
+build:
+	@echo "building"
+`)
+
+	out, err := h.Run("--ls")
+	require.NoError(t, err)
+	assert.Contains(t, out, "build")
+	assert.NotContains(t, out, "This comment is separated")
+}
+
 func TestSeparatorForwarding(t *testing.T) {
 	// Verify that -- is preserved when forwarding to runners
 	h := NewHarness(t).WithMise(`
