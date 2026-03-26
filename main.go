@@ -166,8 +166,6 @@ func run() int {
 	app.Action = runCmd.Action
 	app.ShellComplete = runCmd.ShellComplete
 
-	app = commands.NewXCmd(flags).Register(app)
-	app = commands.NewLsCmd(flags).Register(app)
 	// +scaffold:command:register
 
 	ctx, stop := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)

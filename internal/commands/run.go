@@ -8,6 +8,7 @@ import (
 	"strings"
 
 	"charm.land/lipgloss/v2"
+	"charm.land/lipgloss/v2/table"
 	"github.com/urfave/cli/v3"
 
 	"github.com/hay-kot/mi/internal/runner"
@@ -75,7 +76,40 @@ func (cmd *RunCmd) list(ctx context.Context) error {
 		return fmt.Errorf("listing tasks: %w", err)
 	}
 
-	renderTaskTable(tasks)
+	sort.Slice(tasks, func(i, j int) bool { return tasks[i].Name < tasks[j].Name })
+
+	rows := make([][]string, 0, len(tasks))
+	for _, t := range tasks {
+		rows = append(rows, []string{t.Name, t.Runner, t.Desc})
+	}
+
+	headerStyle := lipgloss.NewStyle().Bold(true).Foreground(lipgloss.Color("#D75F6B")).PaddingRight(2)
+	taskStyle := lipgloss.NewStyle().Bold(true).Foreground(lipgloss.Color("#C5ADF9")).PaddingRight(2)
+	runnerStyle := lipgloss.NewStyle().Foreground(lipgloss.Color("#A3A3A3")).PaddingRight(2)
+	descStyle := lipgloss.NewStyle().Foreground(lipgloss.Color("#E0E0E0"))
+
+	t := table.New().
+		Headers("TASK", "RUNNER", "DESCRIPTION").
+		Rows(rows...).
+		Border(lipgloss.HiddenBorder()).
+		BorderHeader(false).
+		BorderRow(false).
+		BorderColumn(false).
+		StyleFunc(func(row, col int) lipgloss.Style {
+			if row == table.HeaderRow {
+				return headerStyle
+			}
+			switch col {
+			case 0:
+				return taskStyle
+			case 1:
+				return runnerStyle
+			default:
+				return descStyle
+			}
+		})
+
+	fmt.Println(t.Render())
 	return nil
 }
 
