@@ -5,6 +5,7 @@ import (
 	"errors"
 	"fmt"
 	"os/exec"
+	"sync"
 )
 
 // ExitError wraps a runner's non-zero exit code so the caller can
@@ -77,16 +78,32 @@ func Available(runners []Runner) []Runner {
 	return result
 }
 
+// fetchAll calls ListTasks on all runners concurrently, returning results
+// indexed by runner position to preserve priority order.
+func fetchAll(ctx context.Context, runners []Runner, dir string) [][]Task {
+	results := make([][]Task, len(runners))
+	var wg sync.WaitGroup
+	wg.Add(len(runners))
+	for i, r := range runners {
+		go func(i int, r Runner) {
+			defer wg.Done()
+			tasks, err := r.ListTasks(ctx, dir)
+			if err == nil {
+				results[i] = tasks
+			}
+		}(i, r)
+	}
+	wg.Wait()
+	return results
+}
+
 // Resolve finds the first runner (by priority) that has the named task.
 func Resolve(ctx context.Context, runners []Runner, dir string, task string) (Runner, error) {
-	for _, r := range runners {
-		tasks, err := r.ListTasks(ctx, dir)
-		if err != nil {
-			continue
-		}
+	results := fetchAll(ctx, runners, dir)
+	for i, tasks := range results {
 		for _, t := range tasks {
 			if t.Name == task {
-				return r, nil
+				return runners[i], nil
 			}
 		}
 	}
@@ -95,13 +112,10 @@ func Resolve(ctx context.Context, runners []Runner, dir string, task string) (Ru
 
 // ListAll collects tasks from all runners. Higher-priority runner wins on name conflicts.
 func ListAll(ctx context.Context, runners []Runner, dir string) ([]Task, error) {
+	results := fetchAll(ctx, runners, dir)
 	seen := make(map[string]bool)
 	var all []Task
-	for _, r := range runners {
-		tasks, err := r.ListTasks(ctx, dir)
-		if err != nil {
-			continue
-		}
+	for _, tasks := range results {
 		for _, t := range tasks {
 			if seen[t.Name] {
 				continue
