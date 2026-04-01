@@ -14,14 +14,14 @@ func TestNoRunners(t *testing.T) {
 	h := NewHarness(t)
 	out, err := h.Run("build")
 	require.Error(t, err)
-	assert.Contains(t, out, "no task runner found")
+	assert.Contains(t, out, "not found")
 }
 
 func TestListNoRunners(t *testing.T) {
 	h := NewHarness(t)
 	out, err := h.Run()
 	require.NoError(t, err)
-	assert.Contains(t, out, "no task runners found")
+	assert.Contains(t, out, "no tasks found")
 }
 
 func TestMakefileDetect(t *testing.T) {
