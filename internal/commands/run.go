@@ -38,9 +38,9 @@ func (cmd *RunCmd) Action(ctx context.Context, c *cli.Command) error {
 		return fmt.Errorf("getting working directory: %w", err)
 	}
 
-	runners := runner.DetectAll(runner.DefaultPriority(), dir)
+	runners := runner.Available(runner.DefaultPriority())
 	if len(runners) == 0 {
-		return fmt.Errorf("no task runner found (looked for Makefile, Taskfile, mise.toml)")
+		return fmt.Errorf("no task runner found (looked for make, task, mise on PATH)")
 	}
 
 	r, err := runner.Resolve(ctx, runners, dir, taskName)
@@ -65,7 +65,7 @@ func (cmd *RunCmd) list(ctx context.Context) error {
 		return fmt.Errorf("getting working directory: %w", err)
 	}
 
-	runners := runner.DetectAll(runner.DefaultPriority(), dir)
+	runners := runner.Available(runner.DefaultPriority())
 	if len(runners) == 0 {
 		fmt.Println("no task runners found")
 		return nil
@@ -123,7 +123,7 @@ func (cmd *RunCmd) ShellComplete(ctx context.Context, c *cli.Command) {
 		return
 	}
 
-	runners := runner.DetectAll(runner.DefaultPriority(), dir)
+	runners := runner.Available(runner.DefaultPriority())
 	tasks, err := runner.ListAll(ctx, runners, dir)
 	if err != nil {
 		return

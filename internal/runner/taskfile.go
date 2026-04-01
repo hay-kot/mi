@@ -6,22 +6,13 @@ import (
 	"encoding/json"
 	"os"
 	"os/exec"
-	"path/filepath"
 	"strings"
 )
 
 type TaskfileRunner struct{}
 
 func (t *TaskfileRunner) Name() string { return "task" }
-
-func (t *TaskfileRunner) Detect(dir string) bool {
-	for _, name := range []string{"Taskfile.yml", "Taskfile.yaml", "taskfile.yml", "taskfile.yaml"} {
-		if _, err := os.Stat(filepath.Join(dir, name)); err == nil {
-			return true
-		}
-	}
-	return false
-}
+func (t *TaskfileRunner) Bin() string  { return "task" }
 
 type taskListOutput struct {
 	Tasks []taskEntry `json:"tasks"`

@@ -5,7 +5,6 @@ import (
 	"errors"
 	"fmt"
 	"os/exec"
-	"sync"
 )
 
 // ExitError wraps a runner's non-zero exit code so the caller can
@@ -41,8 +40,9 @@ type Task struct {
 type Runner interface {
 	// Name returns the runner identifier (e.g. "make", "task", "mise").
 	Name() string
-	// Detect returns true if this runner's config file exists in dir.
-	Detect(dir string) bool
+	// Bin returns the binary name used by exec.LookPath to check availability.
+	// Return "" for runners that don't require an external binary.
+	Bin() string
 	// ListTasks returns all tasks available in dir.
 	ListTasks(ctx context.Context, dir string) ([]Task, error)
 	// CmdString returns the command that would be executed (for display).
@@ -60,22 +60,17 @@ func DefaultPriority() []Runner {
 	}
 }
 
-// DetectAll runs Detect concurrently on all runners and returns those present, preserving priority order.
-func DetectAll(runners []Runner, dir string) []Runner {
-	present := make([]bool, len(runners))
-	var wg sync.WaitGroup
-	wg.Add(len(runners))
-	for i, r := range runners {
-		go func(i int, r Runner) {
-			defer wg.Done()
-			present[i] = r.Detect(dir)
-		}(i, r)
-	}
-	wg.Wait()
-
+// Available filters runners to those whose binary is on PATH.
+// Runners with an empty Bin() are always included.
+func Available(runners []Runner) []Runner {
 	var result []Runner
-	for i, r := range runners {
-		if present[i] {
+	for _, r := range runners {
+		bin := r.Bin()
+		if bin == "" {
+			result = append(result, r)
+			continue
+		}
+		if _, err := exec.LookPath(bin); err == nil {
 			result = append(result, r)
 		}
 	}
