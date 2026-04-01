@@ -6,26 +6,13 @@ import (
 	"encoding/json"
 	"os"
 	"os/exec"
-	"path/filepath"
 	"strings"
 )
 
 type MiseRunner struct{}
 
 func (m *MiseRunner) Name() string { return "mise" }
-
-func (m *MiseRunner) Detect(dir string) bool {
-	for _, name := range []string{"mise.toml", ".mise.toml"} {
-		if _, err := os.Stat(filepath.Join(dir, name)); err == nil {
-			return true
-		}
-	}
-	// Also check for .mise/tasks/ directory
-	if info, err := os.Stat(filepath.Join(dir, ".mise", "tasks")); err == nil && info.IsDir() {
-		return true
-	}
-	return false
-}
+func (m *MiseRunner) Bin() string  { return "mise" }
 
 type miseTaskEntry struct {
 	Name        string `json:"name"`

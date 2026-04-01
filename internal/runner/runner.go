@@ -41,8 +41,9 @@ type Task struct {
 type Runner interface {
 	// Name returns the runner identifier (e.g. "make", "task", "mise").
 	Name() string
-	// Detect returns true if this runner's config file exists in dir.
-	Detect(dir string) bool
+	// Bin returns the binary name used by exec.LookPath to check availability.
+	// Return "" for runners that don't require an external binary.
+	Bin() string
 	// ListTasks returns all tasks available in dir.
 	ListTasks(ctx context.Context, dir string) ([]Task, error)
 	// CmdString returns the command that would be executed (for display).
@@ -60,38 +61,49 @@ func DefaultPriority() []Runner {
 	}
 }
 
-// DetectAll runs Detect concurrently on all runners and returns those present, preserving priority order.
-func DetectAll(runners []Runner, dir string) []Runner {
-	present := make([]bool, len(runners))
-	var wg sync.WaitGroup
-	wg.Add(len(runners))
-	for i, r := range runners {
-		go func(i int, r Runner) {
-			defer wg.Done()
-			present[i] = r.Detect(dir)
-		}(i, r)
-	}
-	wg.Wait()
-
+// Available filters runners to those whose binary is on PATH.
+// Runners with an empty Bin() are always included.
+func Available(runners []Runner) []Runner {
 	var result []Runner
-	for i, r := range runners {
-		if present[i] {
+	for _, r := range runners {
+		bin := r.Bin()
+		if bin == "" {
+			result = append(result, r)
+			continue
+		}
+		if _, err := exec.LookPath(bin); err == nil {
 			result = append(result, r)
 		}
 	}
 	return result
 }
 
+// fetchAll calls ListTasks on all runners concurrently, returning results
+// indexed by runner position to preserve priority order.
+func fetchAll(ctx context.Context, runners []Runner, dir string) [][]Task {
+	results := make([][]Task, len(runners))
+	var wg sync.WaitGroup
+	wg.Add(len(runners))
+	for i, r := range runners {
+		go func(i int, r Runner) {
+			defer wg.Done()
+			tasks, err := r.ListTasks(ctx, dir)
+			if err == nil {
+				results[i] = tasks
+			}
+		}(i, r)
+	}
+	wg.Wait()
+	return results
+}
+
 // Resolve finds the first runner (by priority) that has the named task.
 func Resolve(ctx context.Context, runners []Runner, dir string, task string) (Runner, error) {
-	for _, r := range runners {
-		tasks, err := r.ListTasks(ctx, dir)
-		if err != nil {
-			continue
-		}
+	results := fetchAll(ctx, runners, dir)
+	for i, tasks := range results {
 		for _, t := range tasks {
 			if t.Name == task {
-				return r, nil
+				return runners[i], nil
 			}
 		}
 	}
@@ -100,13 +112,10 @@ func Resolve(ctx context.Context, runners []Runner, dir string, task string) (Ru
 
 // ListAll collects tasks from all runners. Higher-priority runner wins on name conflicts.
 func ListAll(ctx context.Context, runners []Runner, dir string) ([]Task, error) {
+	results := fetchAll(ctx, runners, dir)
 	seen := make(map[string]bool)
 	var all []Task
-	for _, r := range runners {
-		tasks, err := r.ListTasks(ctx, dir)
-		if err != nil {
-			continue
-		}
+	for _, tasks := range results {
 		for _, t := range tasks {
 			if seen[t.Name] {
 				continue

@@ -21,15 +21,7 @@ var (
 type MakeRunner struct{}
 
 func (m *MakeRunner) Name() string { return "make" }
-
-func (m *MakeRunner) Detect(dir string) bool {
-	for _, name := range []string{"Makefile", "makefile", "GNUmakefile"} {
-		if _, err := os.Stat(filepath.Join(dir, name)); err == nil {
-			return true
-		}
-	}
-	return false
-}
+func (m *MakeRunner) Bin() string  { return "make" }
 
 func (m *MakeRunner) findMakefile(dir string) string {
 	for _, name := range []string{"Makefile", "makefile", "GNUmakefile"} {
