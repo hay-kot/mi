@@ -23,8 +23,7 @@ func ExecExitCode(err error) error {
 	if err == nil {
 		return nil
 	}
-	var exitErr *exec.ExitError
-	if errors.As(err, &exitErr) {
+	if exitErr, ok := errors.AsType[*exec.ExitError](err); ok {
 		return &ExitError{Code: exitErr.ExitCode()}
 	}
 	return err

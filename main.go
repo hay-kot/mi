@@ -172,8 +172,7 @@ func run() int {
 	defer stop()
 
 	if err := app.Run(ctx, os.Args); err != nil {
-		var exitErr *runner.ExitError
-		if errors.As(err, &exitErr) {
+		if exitErr, ok := errors.AsType[*runner.ExitError](err); ok {
 			return exitErr.Code
 		}
 
