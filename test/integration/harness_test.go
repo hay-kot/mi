@@ -51,6 +51,20 @@ func (h *Harness) WithMise(content string) *Harness {
 	return h
 }
 
+// WithPackageJSON writes a package.json to the test directory.
+func (h *Harness) WithPackageJSON(content string) *Harness {
+	h.t.Helper()
+	h.writeFile("package.json", content)
+	return h
+}
+
+// WithFile writes an arbitrary file, such as a lockfile, to the test directory.
+func (h *Harness) WithFile(name, content string) *Harness {
+	h.t.Helper()
+	h.writeFile(name, content)
+	return h
+}
+
 // Run executes mi with the given args in the test directory.
 // Returns combined stdout+stderr.
 func (h *Harness) Run(args ...string) (string, error) {
@@ -107,7 +121,6 @@ func (h *Harness) env() []string {
 		"NO_COLOR=1",
 		"LOG_LEVEL=error",
 		"MISE_TRUSTED_CONFIG_PATHS=" + h.dir,
-		"MISE_GLOBAL_CONFIG_FILE=/dev/null",
 		"MISE_YES=1",
 	}
 }

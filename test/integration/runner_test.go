@@ -3,6 +3,7 @@
 package integration
 
 import (
+	"os/exec"
 	"strings"
 	"testing"
 
@@ -357,6 +358,90 @@ build:
 	require.NoError(t, err)
 	assert.Contains(t, out, "build")
 	assert.NotContains(t, out, "This comment is separated")
+}
+
+func TestPackageJSONArgForwarding(t *testing.T) {
+	managers := []struct {
+		bin      string
+		lockfile string
+	}{
+		{"npm", ""},
+		{"pnpm", "pnpm-lock.yaml"},
+		{"yarn", "yarn.lock"},
+		{"bun", "bun.lock"},
+	}
+	cases := []struct {
+		name string
+		args []string
+		want string
+	}{
+		{"no args", nil, "args:"},
+		{"flag", []string{"--watch"}, "args: --watch"},
+		{"separator", []string{"--", "--watch"}, "args: --watch"},
+		{"inner separator", []string{"--foo", "--", "bar"}, "args: --foo -- bar"},
+	}
+
+	for _, m := range managers {
+		for _, c := range cases {
+			t.Run(m.bin+"/"+c.name, func(t *testing.T) {
+				h := NewHarness(t).WithPackageJSON(`{"name":"t","version":"1.0.0","scripts":{"show":"echo args:"}}`)
+				if m.lockfile != "" {
+					h.WithFile(m.lockfile, "")
+				}
+
+				out, err := h.Run(append([]string{"show"}, c.args...)...)
+				require.NoError(t, err, out)
+				assert.Contains(t, out, m.bin+" run show")
+				assert.Contains(t, strings.Split(out, "\n"), c.want, out)
+			})
+		}
+	}
+}
+
+func TestPackageJSONList(t *testing.T) {
+	h := NewHarness(t).
+		WithFile("pnpm-lock.yaml", "").
+		WithPackageJSON(`{"scripts":{"dev":"vite","predev":"x","postinstall":"x"}}`)
+
+	out, err := h.Run("--ls")
+	require.NoError(t, err)
+	assert.Contains(t, out, "dev")
+	assert.Contains(t, out, "pnpm")
+	assert.Contains(t, out, "vite")
+	assert.NotContains(t, out, "predev")
+	assert.NotContains(t, out, "postinstall")
+}
+
+func TestPackageJSONHiddenScriptRuns(t *testing.T) {
+	h := NewHarness(t).WithPackageJSON(`{"name":"t","version":"1.0.0","scripts":{"prepare":"echo from-prepare"}}`)
+
+	out, err := h.Run("prepare")
+	require.NoError(t, err, out)
+	assert.Contains(t, out, "from-prepare")
+}
+
+func TestPackageJSONExitCode(t *testing.T) {
+	h := NewHarness(t).WithPackageJSON(`{"name":"t","version":"1.0.0","scripts":{"fail":"exit 42"}}`)
+
+	_, err := h.Run("fail")
+	var exitErr *exec.ExitError
+	require.ErrorAs(t, err, &exitErr)
+	assert.Equal(t, 42, exitErr.ExitCode())
+}
+
+func TestPriorityMiseOverPackageJSON(t *testing.T) {
+	h := NewHarness(t).
+		WithMise(`
+[tasks.build]
+description = "Mise build"
+run = "echo from-mise"
+`).
+		WithPackageJSON(`{"name":"t","version":"1.0.0","scripts":{"build":"echo from-npm"}}`)
+
+	out, err := h.Run("build")
+	require.NoError(t, err)
+	assert.Contains(t, out, "from-mise")
+	assert.NotContains(t, out, "from-npm")
 }
 
 func TestSeparatorForwarding(t *testing.T) {
