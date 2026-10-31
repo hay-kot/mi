@@ -45,7 +45,7 @@ func (m *MiseRunner) ListTasks(ctx context.Context, dir string) ([]Task, error) 
 	return tasks, nil
 }
 
-func (m *MiseRunner) CmdString(task string, args []string) string {
+func (m *MiseRunner) CmdString(_ string, task string, args []string) string {
 	return strings.Join(append([]string{"mise", "run", task}, args...), " ")
 }
 

@@ -49,7 +49,7 @@ func (cmd *RunCmd) Action(ctx context.Context, c *cli.Command) error {
 	args := argsAfterTask(os.Args, taskName)
 
 	prefix := lipgloss.NewStyle().Bold(true).Foreground(lipgloss.Color("#C5ADF9")).Render("[mi]")
-	cmdStr := lipgloss.NewStyle().Foreground(lipgloss.Color("#A3A3A3")).Render(r.CmdString(taskName, args))
+	cmdStr := lipgloss.NewStyle().Foreground(lipgloss.Color("#A3A3A3")).Render(r.CmdString(dir, taskName, args))
 	fmt.Fprintf(os.Stderr, "%s %s\n", prefix, cmdStr)
 
 	return r.Exec(ctx, dir, taskName, args)

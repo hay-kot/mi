@@ -94,7 +94,7 @@ func (m *MakeRunner) ListTasks(ctx context.Context, dir string) ([]Task, error) 
 	return tasks, nil
 }
 
-func (m *MakeRunner) CmdString(task string, args []string) string {
+func (m *MakeRunner) CmdString(_ string, task string, args []string) string {
 	return strings.Join(append([]string{"make", task}, args...), " ")
 }
 

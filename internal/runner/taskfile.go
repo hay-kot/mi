@@ -50,7 +50,7 @@ func (t *TaskfileRunner) ListTasks(ctx context.Context, dir string) ([]Task, err
 	return tasks, nil
 }
 
-func (t *TaskfileRunner) CmdString(task string, args []string) string {
+func (t *TaskfileRunner) CmdString(_ string, task string, args []string) string {
 	parts := []string{"task", task}
 	if len(args) > 0 {
 		parts = append(parts, "--")

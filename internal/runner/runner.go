@@ -35,9 +35,10 @@ type Task struct {
 	Name   string
 	Desc   string
 	Runner string // which backend owns this task
+	Hidden bool   // runnable by name, but left out of listings and completion
 }
 
-// Runner is a task runner backend (make, task, mise).
+// Runner is a task runner backend (make, task, mise, package.json).
 type Runner interface {
 	// Name returns the runner identifier (e.g. "make", "task", "mise").
 	Name() string
@@ -47,17 +48,18 @@ type Runner interface {
 	// ListTasks returns all tasks available in dir.
 	ListTasks(ctx context.Context, dir string) ([]Task, error)
 	// CmdString returns the command that would be executed (for display).
-	CmdString(task string, args []string) string
+	CmdString(dir string, task string, args []string) string
 	// Exec runs the named task with args in dir, inheriting stdio.
 	Exec(ctx context.Context, dir string, task string, args []string) error
 }
 
-// DefaultPriority returns runners in default priority order: make > task > mise.
+// DefaultPriority returns runners in default priority order: make > task > mise > package.json.
 func DefaultPriority() []Runner {
 	return []Runner{
 		&MakeRunner{},
 		&TaskfileRunner{},
 		&MiseRunner{},
+		&PackageJSONRunner{},
 	}
 }
 
@@ -117,7 +119,7 @@ func ListAll(ctx context.Context, runners []Runner, dir string) ([]Task, error) 
 	var all []Task
 	for _, tasks := range results {
 		for _, t := range tasks {
-			if seen[t.Name] {
+			if t.Hidden || seen[t.Name] {
 				continue
 			}
 			seen[t.Name] = true

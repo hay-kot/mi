@@ -6,6 +6,7 @@ require (
 	charm.land/lipgloss/v2 v2.0.2
 	github.com/rs/zerolog v1.33.0
 	github.com/stretchr/testify v1.11.1
+	github.com/tailscale/hujson v0.0.0-20260727124030-b80ff77dac4f
 	github.com/urfave/cli/v3 v3.6.2
 	gopkg.in/yaml.v3 v3.0.1
 )
